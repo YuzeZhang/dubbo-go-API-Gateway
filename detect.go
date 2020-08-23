@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/apache/dubbo-go/protocol/dubbo"
 	"net"
 )
@@ -101,7 +102,9 @@ func listen() error {
 		println("buf:", buf)
 		bytesBuffer := bytes.NewBuffer(buf)
 
-		var p dubbo.DubboPackage
+		p := dubbo.DubboPackage{
+			Body: make([]interface{}, 7),
+		}
 		err = p.Unmarshal(bytesBuffer)
 		if err != nil {
 			return err
@@ -121,13 +124,17 @@ func listen() error {
 			req[5] = args ([]interface{})
 			req[6] = attachments (map[interface{}]interface{})
 		*/
-		println("dubboVersion:", req[0])
-		println("target:", req[1])
-		println("serviceVersion:", req[2])
-		println("method:", req[3])
-		println("argsTypes:", req[4])
-		println("args:", req[5])
-		println("attachments:", req[6])
+		println("dubboVersion:", (req[0]).(string))
+		println("target:", req[1].(string))
+		println("serviceVersion:", req[2].(string))
+		println("method:", req[3].(string))
+		println("argsTypes:", req[4].(string))
+
+		args := req[5].([]interface{})
+		for i, arg := range args {
+			fmt.Printf("arg[%v]: %s\n", i, arg)
+		}
+		println("attachments:", req[6].(map[string]string))
 
 		// url := subscribe(p)
 		// invoke(url, p)

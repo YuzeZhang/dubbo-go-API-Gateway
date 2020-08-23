@@ -2,12 +2,8 @@ package main
 
 import (
 	"bytes"
-	"github.com/apache/dubbo-go/common"
-	"github.com/apache/dubbo-go/common/constant"
 	"github.com/apache/dubbo-go/protocol/dubbo"
-	"github.com/apache/dubbo-go/registry/zookeeper"
 	"net"
-	"strconv"
 )
 
 /*
@@ -83,34 +79,36 @@ application=demo-consumer&dubbo=2.0.2&interface=org.apache.dubbo.registry.Regist
 &pid=1214&qos.port=33333&timestamp=1545721981946
 */
 
-func listen() {
+func listen() error {
 	l, err := net.Listen("tcp", "localhost:8888")
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	for {
 
 		conn, err := l.Accept()
 		if err != nil {
-			panic(err)
+			return err
 		}
 
-		var buf []byte
+		buf := make([]byte, 1024)
+		// var buf []byte
 		_, err = conn.Read(buf)
 		if err != nil {
-			panic(err)
+			return err
 		}
+		println("buf:", buf)
 		bytesBuffer := bytes.NewBuffer(buf)
 
 		var p dubbo.DubboPackage
 		err = p.Unmarshal(bytesBuffer)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		println(p.String())
 
-		// req := p.Body.([]interface{})
+		req := p.Body.([]interface{})
 
 		// req := &dubbo.Request{}
 
@@ -123,9 +121,16 @@ func listen() {
 			req[5] = args ([]interface{})
 			req[6] = attachments (map[interface{}]interface{})
 		*/
+		println("dubboVersion:", req[0])
+		println("target:", req[1])
+		println("serviceVersion:", req[2])
+		println("method:", req[3])
+		println("argsTypes:", req[4])
+		println("args:", req[5])
+		println("attachments:", req[6])
 
-		url := subscribe(p)
-		invoke(url, p)
+		// url := subscribe(p)
+		// invoke(url, p)
 	}
 }
 
@@ -142,31 +147,35 @@ func assemble(p dubbo.DubboPackage) common.URL{
 }
 */
 
-func subscribe(p dubbo.DubboPackage) common.URL {
-	regUrl, err := common.NewURL("zookeeper://152.136.97.145:2181", common.WithParamsValue(constant.ROLE_KEY, strconv.Itoa(common.CONSUMER)))
-	if err != nil {
-		panic(err)
-	}
-
-	urlStr := "dubbo://127.0.0.1:20000/"
-	urlStr += p.Service.Path
-	url, err := common.NewURL(urlStr)
-
-	reg, err := zookeeper.NewZkRegistry(&regUrl)
-
-	listener, err := reg.DoSubscribe(&url)
-	if err != nil {
-		panic(err)
-	}
-	serviceEvent, err := listener.Next()
-	if err != nil {
-		panic(err)
-	}
-	println(serviceEvent)
-
-	return url
-}
+//func subscribe(p dubbo.DubboPackage) common.URL {
+//	regUrl, err := common.NewURL("zookeeper://152.136.97.145:2181", common.WithParamsValue(constant.ROLE_KEY, strconv.Itoa(common.CONSUMER)))
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	urlStr := "dubbo://127.0.0.1:20000/"
+//	urlStr += p.Service.Path
+//	url, err := common.NewURL(urlStr)
+//
+//	reg, err := extension.GetRegistry("zk",&common.URL{})
+//	err := reg.Subscribe(url, )
+//	/*
+//	reg, err := zookeeper.NewZkRegistry(&regUrl)
+//
+//	listener, err := reg.DoSubscribe(&url)
+//	if err != nil {
+//		panic(err)
+//	}
+//	serviceEvent, err := listener.Next()
+//	if err != nil {
+//		panic(err)
+//	}
+//	println(serviceEvent)
+//	*/
+//
+//	return url
+//}
 
 func main() {
-	listen()
+	panic(listen())
 }

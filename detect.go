@@ -3,7 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/apache/dubbo-go/common"
+	"github.com/apache/dubbo-go/config_center"
 	"github.com/apache/dubbo-go/protocol/dubbo"
+	"github.com/apache/dubbo-go/registry"
+	"github.com/apache/dubbo-go/registry/zookeeper"
+	"github.com/apache/dubbo-go/remoting"
 	"net"
 )
 
@@ -134,9 +139,14 @@ func listen() error {
 		for i, arg := range args {
 			fmt.Printf("arg[%v]: %s\n", i, arg)
 		}
-		println("attachments:", req[6].(map[string]string))
+		attachments := req[6].(map[string]string)
+		println("ServicePath:", attachments["interface"])
 
-		// url := subscribe(p)
+		url, err := subscribe(p)
+		if err != nil {
+			return err
+		}
+		println(url.String())
 		// invoke(url, p)
 	}
 }
@@ -154,34 +164,64 @@ func assemble(p dubbo.DubboPackage) common.URL{
 }
 */
 
-//func subscribe(p dubbo.DubboPackage) common.URL {
-//	regUrl, err := common.NewURL("zookeeper://152.136.97.145:2181", common.WithParamsValue(constant.ROLE_KEY, strconv.Itoa(common.CONSUMER)))
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	urlStr := "dubbo://127.0.0.1:20000/"
-//	urlStr += p.Service.Path
-//	url, err := common.NewURL(urlStr)
-//
-//	reg, err := extension.GetRegistry("zk",&common.URL{})
-//	err := reg.Subscribe(url, )
-//	/*
-//	reg, err := zookeeper.NewZkRegistry(&regUrl)
-//
-//	listener, err := reg.DoSubscribe(&url)
-//	if err != nil {
-//		panic(err)
-//	}
-//	serviceEvent, err := listener.Next()
-//	if err != nil {
-//		panic(err)
-//	}
-//	println(serviceEvent)
-//	*/
-//
-//	return url
-//}
+type NL struct{}
+
+func (nl NL) Notify(event *registry.ServiceEvent) {
+	println(event.String())
+}
+
+type MockConfigurationListener struct {
+}
+
+func (*MockConfigurationListener) Process(event *config_center.ConfigChangeEvent) {
+}
+
+func subscribe(p dubbo.DubboPackage) (common.URL, error) {
+	// regUrl, err := common.NewURL("registry://152.136.97.145:2181/", common.WithParamsValue(constant.ROLE_KEY, strconv.Itoa(common.CONSUMER)))
+	// if err != nil {
+	// 	return common.URL{}, err
+	// }
+	// dubbo://127.0.0.1:20000/
+	urlStr := "registry://152.136.97.145:2181/"
+	body := p.Body.([]interface{})
+	attachments := body[6].(map[string]string)
+	path := attachments["interface"]
+	urlStr += path
+	println("urlStr:", urlStr)
+
+	url, err := common.NewURL(urlStr)
+	if err != nil {
+		return url, err
+	}
+
+	// reg, err := extension.GetRegistry("zk", &regUrl)
+	// err = reg.Subscribe(&url, NL{})
+	// if err != nil {
+	// 	return url,err
+	// }
+
+	listener := zookeeper.NewRegistryDataListener()
+	listener.SubscribeURL(&url, &MockConfigurationListener{})
+	path = fmt.Sprintf("/dubbo/%s", path)
+	change := listener.DataChange(remoting.Event{Path: path})
+	println(change)
+
+	/*
+		reg, err := zookeeper.NewZkRegistry(&regUrl)
+
+		listener, err := reg.DoSubscribe(&url)
+		if err != nil {
+			panic(err)
+		}
+		serviceEvent, err := listener.Next()
+		if err != nil {
+			panic(err)
+		}
+		println(serviceEvent)
+	*/
+
+	return url, nil
+}
 
 func main() {
 	panic(listen())
